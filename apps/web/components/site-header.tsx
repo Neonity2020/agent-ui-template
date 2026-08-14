@@ -22,7 +22,7 @@ export function SiteHeader() {
         </nav>
         <div className="ml-auto flex items-center gap-1">
           <Button variant="ghost" size="icon" asChild>
-            <a href="https://github.com" aria-label="GitHub"><Github /></a>
+            <a href="https://github.com/Neonity2020/agent-ui-template" aria-label="GitHub"><Github /></a>
           </Button>
           <ThemeToggle />
         </div>
