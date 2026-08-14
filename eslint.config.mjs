@@ -9,10 +9,11 @@ import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
   globalIgnores([
-    ".next/**",
-    "dist/**",
-    "out/**",
-    "build/**",
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/dist/**",
+    "**/out/**",
+    "**/build/**",
     "next-env.d.ts",
   ]),
   eslint.configs.recommended,
@@ -23,6 +24,10 @@ const eslintConfig = defineConfig([
   jsxA11y.flatConfigs.recommended,
   next.configs["core-web-vitals"],
   {
+    rules: {
+      "no-html-link-for-pages": "off",
+      "@next/next/no-html-link-for-pages": "off",
+    },
     languageOptions: {
       globals: {
         ...globals.browser,

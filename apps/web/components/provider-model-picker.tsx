@@ -3,7 +3,7 @@
 import { Check, ChevronDown, Search } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@agent-ui/ui/button"
 import { PROVIDER_ICON_BY_DRIVER } from "@/components/provider-icons"
 import { cn } from "@/lib/utils"
 import {

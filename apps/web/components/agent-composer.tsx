@@ -4,7 +4,7 @@ import { ChevronDown, Paperclip, Send } from "lucide-react"
 import { useState } from "react"
 
 import { ProviderModelPicker } from "@/components/provider-model-picker"
-import { Button } from "@/components/ui/button"
+import { Button } from "@agent-ui/ui/button"
 import {
   defaultSelection,
   providerCatalog,

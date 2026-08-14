@@ -1,8 +1,8 @@
 import { Bot, Check, Code2, FileCode2, GitBranch, Plus, Terminal, User } from "lucide-react"
 
 import { AgentComposer } from "@/components/agent-composer"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Badge } from "@agent-ui/ui/badge"
+import { Button } from "@agent-ui/ui/button"
 
 const threads = ["Build the onboarding flow", "Fix streaming messages", "Review API contracts"]
 

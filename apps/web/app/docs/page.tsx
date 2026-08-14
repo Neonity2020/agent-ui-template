@@ -2,8 +2,8 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowRight, Blocks, Code2, Palette } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@agent-ui/ui/button"
+import { Card, CardDescription, CardHeader, CardTitle } from "@agent-ui/ui/card"
 
 export const metadata: Metadata = { title: "Introduction" }
 

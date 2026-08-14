@@ -3,7 +3,7 @@
 import { Moon, Sun } from "lucide-react"
 import { useEffect } from "react"
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@agent-ui/ui/button"
 
 export function ThemeToggle() {
   useEffect(() => {

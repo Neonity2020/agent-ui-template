@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils"
+import { cn } from "@agent-ui/ui/lib/utils"
 
 export function Separator({ className }: { className?: string }) {
   return <div role="separator" className={cn("h-px w-full bg-border", className)} />

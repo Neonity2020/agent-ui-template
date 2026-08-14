@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Github, Sparkles } from "lucide-react"
 
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Button } from "@/components/ui/button"
+import { Button } from "@agent-ui/ui/button"
 
 export function SiteHeader() {
   return (

@@ -2,39 +2,26 @@
   "name": "agent-ui-template",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.18.0",
   "engines": {
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint . --ignore-pattern .next",
-    "test": "node --experimental-strip-types --test tests/*.test.ts"
-  },
-  "dependencies": {
-    "@radix-ui/react-slot": "^1.2.4",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.468.0",
-    "next": "16.2.10",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
-    "tailwind-merge": "^3.4.0"
+    "dev": "pnpm --filter @agent-ui/web dev",
+    "build": "pnpm --filter @agent-ui/web build",
+    "start": "pnpm --filter @agent-ui/web start",
+    "lint": "eslint .",
+    "test": "pnpm -r test",
+    "check": "pnpm lint && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "9.39.4",
     "@next/eslint-plugin-next": "16.2.6",
-    "@tailwindcss/postcss": "4.2.1",
-    "@types/node": "22.19.19",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
     "eslint": "9.39.4",
     "eslint-plugin-jsx-a11y": "6.10.2",
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "16.4.0",
-    "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "typescript-eslint": "8.59.3"
   },

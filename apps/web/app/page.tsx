@@ -4,9 +4,9 @@ import { ArrowRight, Braces, Copy, Layers3, MessagesSquare, ShieldCheck } from "
 
 import { AgentPreview } from "@/components/agent-preview";
 import { SiteHeader } from "@/components/site-header";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@agent-ui/ui/badge";
+import { Button } from "@agent-ui/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@agent-ui/ui/card";
 
 export const metadata: Metadata = {
   title: "Agent UI",

@@ -2,8 +2,8 @@ import Link from "next/link"
 import { ArrowLeft, ArrowRight, Check } from "lucide-react"
 
 import { CopyButton } from "@/components/copy-button"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
+import { Button } from "@agent-ui/ui/button"
+import { Separator } from "@agent-ui/ui/separator"
 import { type DocPage, docs } from "@/lib/docs"
 
 export function DocArticle({ doc }: { doc: DocPage }) {
