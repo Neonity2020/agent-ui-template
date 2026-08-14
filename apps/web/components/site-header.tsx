@@ -15,6 +15,7 @@ export function SiteHeader() {
           Agent UI
         </Link>
         <nav className="hidden items-center gap-5 text-sm md:flex">
+          <Link href="/chat" className="font-medium text-foreground transition-colors hover:text-foreground">Chat</Link>
           <Link href="/docs" className="text-muted-foreground transition-colors hover:text-foreground">Docs</Link>
           <Link href="/docs/components/agent-shell" className="text-muted-foreground transition-colors hover:text-foreground">Components</Link>
           <Link href="/docs/theming" className="text-muted-foreground transition-colors hover:text-foreground">Theming</Link>

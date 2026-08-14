@@ -1,0 +1,13 @@
+import type { Metadata } from "next"
+
+import { ChatClient } from "@/components/chat/chat-client"
+import { chatAgents } from "@/lib/agents"
+
+export const metadata: Metadata = {
+  title: "Chat | Agent UI",
+  description: "Minimal multi-agent chatbot built on the Agent UI template.",
+}
+
+export default function ChatPage() {
+  return <ChatClient agents={chatAgents} />
+}
