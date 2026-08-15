@@ -20,6 +20,10 @@ A pnpm monorepo with Next.js 16 and shadcn/ui for agent products.
 - Agent shell, message, composer, and theming guides
 - Light and dark themes built from shadcn/ui CSS variables
 
+## Design inspiration
+
+The UI is inspired by **T3 Code (t3.codes)**. The agent workspace preview on the landing page carries its signature look: a window chrome with traffic-light dots, a `main` branch indicator, a thread sidebar, agent messages with tool-activity cards ("Inspected project structure", "Editing app/onboarding/page.tsx"), and a GitHub-dark terminal-style code block showing a live diff.
+
 ## Development
 
 Requires Node.js >= 20.9 and pnpm >= 10.
