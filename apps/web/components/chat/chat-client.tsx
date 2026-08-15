@@ -1,91 +1,106 @@
 "use client"
 
-import { Bot, User } from "lucide-react"
-import { useRef, useState } from "react"
+import { useChat } from "@ai-sdk/react"
+import { DefaultChatTransport } from "ai"
+import { Bot } from "lucide-react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 
 import { AgentComposer } from "@/components/agent-composer"
+import { ChatSettings } from "@/components/chat/chat-settings"
+import { MessageRow } from "@/components/chat/message-row"
 import { Badge } from "@agent-ui/ui/badge"
 import { Button } from "@agent-ui/ui/button"
 import { Card } from "@agent-ui/ui/card"
 import { Separator } from "@agent-ui/ui/separator"
 import { cn } from "@/lib/utils"
 import type { ChatAgent } from "@/lib/agents"
+import {
+  getSettingsSnapshot,
+  markSettingsHydrated,
+  subscribeSettings,
+  updateSettings,
+  type AgnesSettings,
+} from "@/lib/agnes-settings"
 
-type ChatMessage = {
-  id: string
-  role: "user" | "assistant"
-  agentId?: string
-  content: string
+/**
+ * One chat panel per agent. Kept mounted even when hidden so each agent's
+ * conversation history survives switching.
+ */
+function AgentChat({ agent, settings }: { agent: ChatAgent; settings: AgnesSettings }) {
+  const listRef = useRef<HTMLDivElement>(null)
+  const chat = useChat({
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      // Evaluated per request, so the latest settings are always used.
+      body: () => ({ agentId: agent.id, settings }),
+    }),
+    onError: (error) => console.error(`[chat:${agent.id}]`, error),
+  })
+  const busy = chat.status === "submitted" || chat.status === "streaming"
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
+  }, [chat.messages])
+
+  return (
+    <Card className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex items-center gap-3 border-b px-4 py-3">
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+          <Bot className="size-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">{agent.name}</p>
+          <p className="truncate text-xs text-muted-foreground">{agent.description}</p>
+        </div>
+        <Badge
+          className={cn(
+            "ml-auto shrink-0",
+            settings.apiKey &&
+              !chat.error &&
+              "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+          )}
+        >
+          {busy ? "Thinking…" : chat.error ? "Error" : settings.apiKey ? "Connected" : "No API key"}
+        </Badge>
+        <ChatSettings settings={settings} onValueChange={updateSettings} />
+      </div>
+
+      <div ref={listRef} className="flex-1 space-y-4 overflow-y-auto p-4">
+        {chat.messages.length === 0 ? (
+          <div className="grid h-full place-items-center text-center">
+            <div className="max-w-sm space-y-2">
+              <p className="text-sm font-medium">Start a conversation with {agent.name}</p>
+              <p className="text-xs text-muted-foreground">{agent.description}</p>
+            </div>
+          </div>
+        ) : (
+          chat.messages.map((message) => <MessageRow key={message.id} message={message} />)
+        )}
+      </div>
+
+      <div className="border-t p-3">
+        {chat.error ? (
+          <p className="mb-2 text-xs text-destructive">{chat.error.message}</p>
+        ) : null}
+        <AgentComposer
+          onSubmit={({ prompt }) => void chat.sendMessage({ text: prompt })}
+          disabled={busy}
+          placeholder={`Message ${agent.name}…`}
+        />
+      </div>
+    </Card>
+  )
 }
 
 export function ChatClient({ agents }: { agents: ChatAgent[] }) {
   const [activeId, setActiveId] = useState(agents[0]!.id)
-  const [threads, setThreads] = useState<Record<string, ChatMessage[]>>({})
-  const [streaming, setStreaming] = useState(false)
-  const listRef = useRef<HTMLDivElement>(null)
+  const settings = useSyncExternalStore(subscribeSettings, getSettingsSnapshot, getSettingsSnapshot)
 
-  const active = agents.find((agent) => agent.id === activeId) ?? agents[0]!
-  const messages = threads[activeId] ?? []
-
-  function patchThread(agentId: string, updater: (thread: ChatMessage[]) => ChatMessage[]) {
-    setThreads((current) => ({ ...current, [agentId]: updater(current[agentId] ?? []) }))
-  }
-
-  async function send(prompt: string) {
-    if (streaming) return
-    const history = [...messages, { id: crypto.randomUUID(), role: "user" as const, content: prompt }]
-    patchThread(activeId, () => history)
-    setStreaming(true)
-
-    const assistantId = crypto.randomUUID()
-    patchThread(activeId, (thread) => [
-      ...thread,
-      { id: assistantId, role: "assistant", agentId: activeId, content: "" },
-    ])
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentId: activeId,
-          messages: history.map(({ role, content }) => ({ role, content })),
-        }),
-      })
-      if (!response.ok || !response.body) throw new Error(`Request failed: ${response.status}`)
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      for (;;) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        patchThread(activeId, (thread) =>
-          thread.map((message) =>
-            message.id === assistantId
-              ? { ...message, content: message.content + chunk }
-              : message,
-          ),
-        )
-        listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
-      }
-    } catch (error) {
-      patchThread(activeId, (thread) =>
-        thread.map((message) =>
-          message.id === assistantId
-            ? {
-                ...message,
-                content:
-                  message.content ||
-                  `Sorry, something went wrong: ${error instanceof Error ? error.message : "unknown error"}`,
-              }
-            : message,
-        ),
-      )
-    } finally {
-      setStreaming(false)
-    }
-  }
+  useEffect(() => {
+    // After hydration the snapshot can switch from the server-safe default to
+    // the settings actually stored in localStorage.
+    markSettingsHydrated()
+  }, [])
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-3.5rem)] max-w-[1400px] gap-4 p-4 sm:px-6">
@@ -114,21 +129,8 @@ export function ChatClient({ agents }: { agents: ChatAgent[] }) {
         </p>
       </Card>
 
-      <Card className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex items-center gap-3 border-b px-4 py-3">
-          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
-            <Bot className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{active.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{active.description}</p>
-          </div>
-          <Badge className="ml-auto shrink-0 text-muted-foreground">
-            {streaming ? "Thinking…" : "Ready"}
-          </Badge>
-        </div>
-
-        <div className="flex gap-1.5 overflow-x-auto border-b px-3 py-2 md:hidden">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="mb-3 flex gap-1.5 overflow-x-auto rounded-xl border bg-background p-2 md:hidden">
           {agents.map((agent) => (
             <Button
               key={agent.id}
@@ -141,57 +143,14 @@ export function ChatClient({ agents }: { agents: ChatAgent[] }) {
             </Button>
           ))}
         </div>
-
-        <div ref={listRef} className="flex-1 space-y-4 overflow-y-auto p-4">
-          {messages.length === 0 ? (
-            <div className="grid h-full place-items-center text-center">
-              <div className="max-w-sm space-y-2">
-                <p className="text-sm font-medium">Start a conversation with {active.name}</p>
-                <p className="text-xs text-muted-foreground">{active.description}</p>
-              </div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          {agents.map((agent) => (
+            <div key={agent.id} className={cn("min-h-0 flex-1", agent.id !== activeId && "hidden")}>
+              <AgentChat agent={agent} settings={settings} />
             </div>
-          ) : (
-            messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "flex items-start gap-2.5",
-                  message.role === "user" && "flex-row-reverse",
-                )}
-              >
-                <span
-                  className={cn(
-                    "grid size-7 shrink-0 place-items-center rounded-full",
-                    message.role === "user"
-                      ? "bg-muted text-muted-foreground"
-                      : "bg-primary text-primary-foreground",
-                  )}
-                >
-                  {message.role === "user" ? <User className="size-3.5" /> : <Bot className="size-3.5" />}
-                </span>
-                <div
-                  className={cn(
-                    "max-w-[85%] whitespace-pre-wrap rounded-xl px-3.5 py-2.5 text-sm leading-relaxed",
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted",
-                  )}
-                >
-                  {message.content || <span className="animate-pulse">…</span>}
-                </div>
-              </div>
-            ))
-          )}
+          ))}
         </div>
-
-        <div className="border-t p-3">
-          <AgentComposer
-            onSubmit={({ prompt }) => void send(prompt)}
-            disabled={streaming}
-            placeholder={`Message ${active.name}…`}
-          />
-        </div>
-      </Card>
+      </div>
     </div>
   )
 }

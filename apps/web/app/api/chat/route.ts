@@ -1,101 +1,117 @@
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  type UIMessage,
+  type UIMessageChunk,
+} from "ai"
+
 import { agentById, chatAgents } from "@/lib/agents"
 
 export const runtime = "nodejs"
 
-type ChatMessage = { role: "user" | "assistant"; content: string }
+const AGNES_DEFAULT_BASE_URL = "https://apihub.agnes-ai.com/v1"
+
+type ChatBody = {
+  agentId?: string
+  messages?: UIMessage[]
+  settings?: { apiKey?: string; baseUrl?: string; model?: string }
+}
 
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => null)) as {
-    agentId?: string
-    messages?: ChatMessage[]
-  } | null
+  const body = (await request.json().catch(() => null)) as ChatBody | null
 
   const agent = agentById(body?.agentId ?? "")
-  const messages = (body?.messages ?? [])
-    .filter((message) => typeof message?.content === "string" && message.content.trim())
-    .slice(-12)
-
+  const messages = (body?.messages ?? []).filter(
+    (message) => message.role === "user" || message.role === "assistant",
+  )
   if (messages.length === 0 || !chatAgents.some((item) => item.id === agent.id)) {
     return new Response("Invalid request", { status: 400 })
   }
 
-  const encoder = new TextEncoder()
+  const apiKey = body?.settings?.apiKey?.trim()
+  const baseUrl = (body?.settings?.baseUrl?.trim() || AGNES_DEFAULT_BASE_URL).replace(/\/+$/, "")
+  const model = body?.settings?.model?.trim() || "agnes-2.5-flash"
 
-  if (process.env.OPENAI_API_KEY) {
-    const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-        stream: true,
-        messages: [{ role: "system", content: agent.systemPrompt }, ...messages],
-      }),
-    })
-
-    if (!upstream.ok || !upstream.body) {
-      return new Response("Upstream error", { status: 502 })
+  // 1. User-configured Agnes API key (entered in the web UI)
+  if (apiKey) {
+    if (!baseUrl.startsWith("https://")) {
+      return new Response("Base URL must use https://", { status: 400 })
     }
-
-    const reader = upstream.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ""
-
-    const stream = new ReadableStream<Uint8Array>({
-      async pull(controller) {
-        const { done, value } = await reader.read()
-        if (done) {
-          controller.close()
-          return
-        }
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split("\n")
-        buffer = lines.pop() ?? ""
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue
-          const data = line.slice(6)
-          if (data === "[DONE]") continue
-          const delta = JSON.parse(data).choices?.[0]?.delta?.content
-          if (delta) controller.enqueue(encoder.encode(delta))
-        }
-      },
-      cancel() {
-        void reader.cancel()
-      },
+    const agnes = createOpenAICompatible({
+      name: "agnes",
+      baseURL: baseUrl,
+      apiKey,
     })
-
-    return new Response(stream, { headers: { "Content-Type": "text/plain; charset=utf-8" } })
+    const result = streamText({
+      model: agnes(model),
+      system: agent.systemPrompt,
+      messages: await convertToModelMessages(messages),
+      onError: (error) => console.error("[chat] Agnes stream error", error),
+    })
+    return result.toUIMessageStreamResponse()
   }
 
-  let reply = mockReply(agent.id, messages.at(-1)!.content)
-  const stream = new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      if (reply.length === 0) {
-        controller.close()
-        return
-      }
-      const chunk = reply.slice(0, 6)
-      controller.enqueue(encoder.encode(chunk))
-      reply = reply.slice(6)
-      await new Promise((resolve) => setTimeout(resolve, 20))
-    },
-  })
+  // 2. Environment-configured OpenAI key (fallback)
+  if (process.env.OPENAI_API_KEY) {
+    const openai = createOpenAICompatible({
+      name: "openai",
+      baseURL: "https://api.openai.com/v1",
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+    const result = streamText({
+      model: openai(process.env.OPENAI_MODEL ?? "gpt-4o-mini"),
+      system: agent.systemPrompt,
+      messages: await convertToModelMessages(messages),
+    })
+    return result.toUIMessageStreamResponse()
+  }
 
-  return new Response(stream, {
-    headers: { "Content-Type": "text/plain; charset=utf-8", "X-Agent": agent.id },
+  // 3. Mock fallback when no key is configured
+  const reply = mockReply(agent.id, lastUserText(messages))
+  return createUIMessageStreamResponse({
+    stream: new ReadableStream<UIMessageChunk>({
+      async start(controller) {
+        for await (const chunk of mockChunks(reply)) controller.enqueue(chunk)
+        controller.close()
+      },
+    }),
   })
+}
+
+function lastUserText(messages: UIMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const text = messages[i]!.parts
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join("")
+    if (text.trim()) return text
+  }
+  return ""
+}
+
+async function* mockChunks(text: string): AsyncGenerator<UIMessageChunk> {
+  const id = `mock-${crypto.randomUUID()}`
+  yield { type: "text-start", id }
+  let remaining = text
+  while (remaining.length > 0) {
+    const chunk = remaining.slice(0, 6)
+    remaining = remaining.slice(6)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    yield { type: "text-delta", id, delta: chunk }
+  }
+  yield { type: "text-end", id }
 }
 
 function mockReply(agentId: string, prompt: string): string {
   const trimmed = prompt.length > 80 ? `${prompt.slice(0, 80)}…` : prompt
   switch (agentId) {
     case "byte":
-      return `Here's how I'd approach "${trimmed}":\n\n1. Reproduce it in the smallest possible case.\n2. bisect the change that introduced it.\n3. Patch, then add a regression test.\n\n(Set OPENAI_API_KEY to get real answers from a model.)`
+      return `Here's how I'd approach "${trimmed}":\n\n1. Reproduce it in the smallest possible case.\n2. bisect the change that introduced it.\n3. Patch, then add a regression test.\n\n(Set an API key in the chat header to get real answers from Agnes.)`
     case "sage":
-      return `On "${trimmed}", here's a structured take:\n\n- Pro: iterating quickly validates assumptions.\n- Con: premature structure locks in the wrong design.\n- Bottom line: prototype first, formalize once the shape is clear.\n\n(Set OPENAI_API_KEY to get real answers from a model.)`
+      return `On "${trimmed}", here's a structured take:\n\n- Pro: iterating quickly validates assumptions.\n- Con: premature structure locks in the wrong design.\n- Bottom line: prototype first, formalize once the shape is clear.\n\n(Set an API key in the chat header to get real answers from Agnes.)`
     default:
-      return `Good question about "${trimmed}"! In this template I'm a mock endpoint, so here's a short placeholder answer. Set OPENAI_API_KEY in your environment and I'll reply with a real model instead.`
+      return `Good question about "${trimmed}"! In this template I'm a mock endpoint, so here's a short placeholder answer. Set an API key in the chat header and I'll reply with a real model instead.`
   }
 }
