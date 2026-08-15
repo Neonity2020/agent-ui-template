@@ -2,7 +2,7 @@
   "name": "agent-ui-template",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@10.18.0",
+  "packageManager": "pnpm@11.21.0",
   "engines": {
     "node": ">=20.9.0"
   },
