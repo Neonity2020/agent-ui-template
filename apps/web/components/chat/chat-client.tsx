@@ -1,7 +1,7 @@
 "use client"
 
 import { useChat } from "@ai-sdk/react"
-import { DefaultChatTransport } from "ai"
+import { DefaultChatTransport, type FileUIPart } from "ai"
 import { Bot } from "lucide-react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 
@@ -37,6 +37,31 @@ function AgentChat({ agent, settings }: { agent: ChatAgent; settings: AgnesSetti
     onError: (error) => console.error(`[chat:${agent.id}]`, error),
   })
   const busy = chat.status === "submitted" || chat.status === "streaming"
+
+  async function sendMessage(prompt: string, files: File[]) {
+    if (files.length === 0) {
+      await chat.sendMessage({ text: prompt })
+      return
+    }
+    const fileParts: FileUIPart[] = await Promise.all(
+      files.map(async (file) => ({
+        type: "file" as const,
+        mediaType: file.type,
+        filename: file.name,
+        url: await fileToDataUrl(file),
+      })),
+    )
+    await chat.sendMessage({ text: prompt, files: fileParts })
+  }
+
+  function fileToDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(file)
+    })
+  }
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
@@ -83,7 +108,7 @@ function AgentChat({ agent, settings }: { agent: ChatAgent; settings: AgnesSetti
           <p className="mb-2 text-xs text-destructive">{chat.error.message}</p>
         ) : null}
         <AgentComposer
-          onSubmit={({ prompt }) => void chat.sendMessage({ text: prompt })}
+          onSubmit={({ prompt, files }) => void sendMessage(prompt, files)}
           disabled={busy}
           placeholder={`Message ${agent.name}…`}
         />
@@ -103,7 +128,7 @@ export function ChatClient({ agents }: { agents: ChatAgent[] }) {
   }, [])
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-3.5rem)] max-w-[1400px] gap-4 p-4 sm:px-6">
+    <div className="mx-auto flex h-full max-w-[1400px] gap-4 p-4 sm:px-6">
       <Card className="hidden w-60 shrink-0 flex-col gap-1 p-3 md:flex">
         <p className="px-2 pb-2 text-xs font-medium text-muted-foreground">Agents</p>
         {agents.map((agent) => (
@@ -129,7 +154,7 @@ export function ChatClient({ agents }: { agents: ChatAgent[] }) {
         </p>
       </Card>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 min-h-0 flex-1 flex-col">
         <div className="mb-3 flex gap-1.5 overflow-x-auto rounded-xl border bg-background p-2 md:hidden">
           {agents.map((agent) => (
             <Button
@@ -143,7 +168,7 @@ export function ChatClient({ agents }: { agents: ChatAgent[] }) {
             </Button>
           ))}
         </div>
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 min-h-0 flex-1 flex-col">
           {agents.map((agent) => (
             <div key={agent.id} className={cn("min-h-0 flex-1", agent.id !== activeId && "hidden")}>
               <AgentChat agent={agent} settings={settings} />

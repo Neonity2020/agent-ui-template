@@ -16,6 +16,7 @@ export function MessageRow({ message }: { message: UIMessage }) {
     .filter((part) => part.type === "text")
     .map((part) => part.text)
     .join("")
+  const images = message.parts.filter((part) => part.type === "file")
 
   return (
     <div className={cn("flex items-start gap-2.5", isUser && "flex-row-reverse")}>
@@ -39,6 +40,20 @@ export function MessageRow({ message }: { message: UIMessage }) {
             <p className="whitespace-pre-wrap text-xs italic leading-relaxed text-muted-foreground/90">
               {reasoning}
             </p>
+          </div>
+        ) : null}
+        {images.length > 0 ? (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {images.map((part, index) => (
+              /* Data-URL attachments — next/image cannot optimize them. */
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={`${part.filename ?? "file"}-${index}`}
+                src={part.url}
+                alt={part.filename ?? "Attachment"}
+                className="h-20 w-20 rounded-lg border object-cover"
+              />
+            ))}
           </div>
         ) : null}
         {text ? (
