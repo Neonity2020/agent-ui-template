@@ -35,6 +35,32 @@ pnpm dev
 
 Open `http://localhost:3000`.
 
+## Authentication
+
+Email/password auth is powered by [Better Auth](https://www.better-auth.com) with [Drizzle ORM](https://orm.drizzle.team) on a [Neon](https://neon.tech) Postgres database.
+
+### Setup
+
+1. Create a database at [console.neon.tech](https://console.neon.tech) and copy its connection string.
+2. Copy `apps/web/.env.example` to `apps/web/.env.local` and fill in:
+
+   ```
+   DATABASE_URL=postgresql://…
+   BETTER_AUTH_SECRET=<generated with: npx better-auth secret>
+   BETTER_AUTH_URL=http://localhost:3000
+   ```
+
+3. Push the schema to your database:
+
+   ```bash
+   cd apps/web
+   npx drizzle-kit push
+   ```
+
+4. Restart the dev server. Sign up at `http://localhost:3000/sign-up`.
+
+The auth handlers live at `/api/auth/*`; the header shows a sign-in button or a user menu once signed in. Chat works without an account — auth just adds persistent sessions.
+
 ## Commands
 
 | Command      | Description                    |

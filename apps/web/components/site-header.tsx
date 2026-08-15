@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Github, Sparkles } from "lucide-react"
 
 import { ThemeToggle } from "@/components/theme-toggle"
+import { UserMenu } from "@/components/user-menu"
 import { Button } from "@agent-ui/ui/button"
 
 export function SiteHeader() {
@@ -25,6 +26,7 @@ export function SiteHeader() {
             <a href="https://github.com/Neonity2020/agent-ui-template" aria-label="GitHub"><Github /></a>
           </Button>
           <ThemeToggle />
+          <UserMenu />
         </div>
       </div>
     </header>

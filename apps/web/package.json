@@ -14,7 +14,10 @@
     "@agent-ui/ui": "workspace:*",
     "@ai-sdk/openai-compatible": "^3.0.30",
     "@ai-sdk/react": "^4.0.69",
+    "@neondatabase/serverless": "^1.1.0",
     "ai": "^7.0.66",
+    "better-auth": "^1.6.29",
+    "drizzle-orm": "^0.45.2",
     "lucide-react": "^0.468.0",
     "next": "16.2.10",
     "react": "19.2.6",
@@ -27,6 +30,8 @@
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "dotenv": "^17.4.2",
+    "drizzle-kit": "^0.31.10",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3"
   }
