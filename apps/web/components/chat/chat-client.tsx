@@ -51,13 +51,32 @@ function AgentChat({
 }) {
   const listRef = useRef<HTMLDivElement>(null)
   const loadedConversationId = useRef<string | null>(null)
+  const localRunnerUrl = process.env.NEXT_PUBLIC_PI_RUNNER_URL
+  const usingLocalRunner = settings.runtime === "pi" && Boolean(localRunnerUrl)
   const chat = useChat({
     transport: new DefaultChatTransport({
-      api: "/api/chat",
-      body: () => ({ agentId: agent.id, conversationId, settings }),
+      api: usingLocalRunner ? localRunnerUrl : "/api/chat",
+      body: () => ({ agentId: agent.id, conversationId, settings, systemPrompt: agent.systemPrompt }),
     }),
     onError: (error) => console.error(`[chat:${agent.id}]`, error),
-    onFinish: () => onHistoryChanged(),
+    onFinish: ({ message, messages, isError }) => {
+      void (async () => {
+        try {
+          if (usingLocalRunner && conversationId && !isError) {
+            const response = await fetch("/api/chat/persist", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ agentId: agent.id, conversationId, messages: [...messages, message] }),
+            })
+            if (!response.ok) throw new Error(await response.text())
+          }
+        } catch (error) {
+          console.error(`[chat:${agent.id}] local history persistence failed`, error)
+        } finally {
+          onHistoryChanged()
+        }
+      })()
+    },
   })
   const { setMessages } = chat
   const busy = chat.status === "submitted" || chat.status === "streaming"
@@ -137,10 +156,10 @@ function AgentChat({
         <Badge
           className={cn(
             "ml-auto shrink-0",
-            settings.apiKey && !chat.error && "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+            (usingLocalRunner || settings.apiKey) && !chat.error && "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
           )}
         >
-          {busy ? "Thinking…" : chat.error ? "Error" : settings.apiKey ? "Connected" : "No API key"}
+          {busy ? "Thinking…" : chat.error ? "Error" : usingLocalRunner ? "Pi Runner" : settings.apiKey ? "Connected" : "No API key"}
         </Badge>
         <ChatSettings settings={settings} onValueChange={updateSettings} />
       </div>
@@ -189,23 +208,30 @@ export function ChatClient({ agents }: { agents: ChatAgent[] }) {
   const visibleConversations = session ? conversations : []
 
   const refreshConversations = useCallback(async () => {
-    if (!session) return
-    const response = await fetch("/api/conversations")
-    if (!response.ok) throw new Error("Unable to load conversations")
-    const data = (await response.json()) as { conversations: Conversation[] }
-    setConversations(data.conversations)
-    setSelectedConversationIds((selected) => {
-      const next = { ...selected }
-      for (const agent of agents) {
-        const stillExists = data.conversations.some((item) => item.id === next[agent.id])
-        if (!stillExists) {
-          const latest = data.conversations.find((item) => item.agentId === agent.id)
-          if (latest) next[agent.id] = latest.id
-          else delete next[agent.id]
+    if (!session) return false
+    try {
+      const response = await fetch("/api/conversations")
+      if (!response.ok) return false
+      const data = (await response.json()) as { conversations: Conversation[] }
+      setConversations(data.conversations)
+      setSelectedConversationIds((selected) => {
+        const next = { ...selected }
+        for (const agent of agents) {
+          const stillExists = data.conversations.some((item) => item.id === next[agent.id])
+          if (!stillExists) {
+            const latest = data.conversations.find((item) => item.agentId === agent.id)
+            if (latest) next[agent.id] = latest.id
+            else delete next[agent.id]
+          }
         }
-      }
-      return next
-    })
+        return next
+      })
+      return true
+    } catch {
+      // The chat answer remains valid if Next is recompiling or temporarily
+      // unavailable. A later refresh or reload will resynchronize the sidebar.
+      return false
+    }
   }, [agents, session])
 
   useEffect(() => {
@@ -216,7 +242,7 @@ export function ChatClient({ agents }: { agents: ChatAgent[] }) {
     if (!session) return
     // This synchronizes state from the conversations API after authentication.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void refreshConversations().catch((error) => console.error("[chat] conversation load failed", error))
+    void refreshConversations()
   }, [refreshConversations, session])
 
   async function createConversation(agentId: string) {
@@ -348,11 +374,14 @@ export function ChatClient({ agents }: { agents: ChatAgent[] }) {
           {agents.map((agent) => (
             <div key={agent.id} className={cn("min-h-0 flex-1", agent.id !== activeId && "hidden")}>
               <AgentChat
+                key={`${agent.id}-${settings.runtime}`}
                 agent={agent}
                 settings={settings}
                 historyEnabled={Boolean(session)}
                 conversationId={session ? selectedConversationIds[agent.id] : undefined}
-                onHistoryChanged={() => void refreshConversations()}
+                onHistoryChanged={() => {
+                  void refreshConversations()
+                }}
               />
             </div>
           ))}

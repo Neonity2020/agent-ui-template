@@ -1,6 +1,6 @@
 "use client"
 
-import { KeyRound, ShieldCheck, Trash2 } from "lucide-react"
+import { KeyRound, Laptop, ShieldCheck, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 import { Button } from "@agent-ui/ui/button"
@@ -26,6 +26,7 @@ export function ChatSettings({
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState(settings)
   const panelRef = useRef<HTMLDivElement>(null)
+  const piRunnerAvailable = Boolean(process.env.NEXT_PUBLIC_PI_RUNNER_URL)
 
   useEffect(() => {
     if (!open) return
@@ -46,6 +47,7 @@ export function ChatSettings({
       apiKey: draft.apiKey.trim(),
       baseUrl: draft.baseUrl.trim() || AGNES_DEFAULT_BASE_URL,
       model: draft.model,
+      runtime: draft.runtime,
     }
     saveSettings(next)
     onValueChange?.(next)
@@ -67,6 +69,26 @@ export function ChatSettings({
       {open ? (
         <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border bg-background p-4 shadow-lg">
           <div className="space-y-3">
+            <div>
+              <label htmlFor="agent-runtime" className="mb-1 block text-xs font-medium">
+                Agent runtime
+              </label>
+              <select
+                id="agent-runtime"
+                className={inputClass}
+                value={draft.runtime}
+                onChange={(event) => setDraft({ ...draft, runtime: event.target.value as AgnesSettings["runtime"] })}
+              >
+                <option value="cloud">Cloud API</option>
+                <option value="pi" disabled={!piRunnerAvailable}>Pi Local Runner{piRunnerAvailable ? "" : " (start pnpm dev:local)"}</option>
+              </select>
+            </div>
+            {draft.runtime === "pi" ? (
+              <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                <Laptop className="mt-0.5 size-3 shrink-0 text-emerald-500" />
+                Calls Pi on this computer. It can access only the workspace and tools enabled by the local Runner.
+              </p>
+            ) : null}
             <div>
               <label htmlFor="agnes-api-key" className="mb-1 block text-xs font-medium">
                 API Key
@@ -116,7 +138,7 @@ export function ChatSettings({
               server. Use a server-side env var instead for production deployments.
             </p>
             <div className="flex items-center gap-2 pt-1">
-              <Button size="sm" className="flex-1" onClick={save} disabled={!draft.apiKey.trim()}>
+              <Button size="sm" className="flex-1" onClick={save} disabled={draft.runtime === "cloud" && !draft.apiKey.trim()}>
                 Save
               </Button>
               <Button size="sm" variant="ghost" onClick={clear} aria-label="Clear API settings">

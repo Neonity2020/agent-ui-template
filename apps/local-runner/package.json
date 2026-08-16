@@ -1,0 +1,14 @@
+{
+  "name": "@agent-ui/local-runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node src/index.mjs",
+    "dev:local": "node src/index.mjs --workspace ${AGENT_WORKSPACE:-../..} --allow-write",
+    "start": "node src/index.mjs"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "^0.84.2"
+  }
+}

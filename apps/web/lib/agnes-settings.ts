@@ -2,6 +2,7 @@ export type AgnesSettings = {
   apiKey: string
   baseUrl: string
   model: string
+  runtime: "cloud" | "pi"
 }
 
 export const AGNES_DEFAULT_BASE_URL = "https://apihub.agnes-ai.com/v1"
@@ -14,7 +15,7 @@ export const AGNES_MODELS = [
 const STORAGE_KEY = "agnes-settings"
 
 export function defaultSettings(): AgnesSettings {
-  return { apiKey: "", baseUrl: AGNES_DEFAULT_BASE_URL, model: "agnes-2.5-flash" }
+  return { apiKey: "", baseUrl: AGNES_DEFAULT_BASE_URL, model: "agnes-2.5-flash", runtime: "cloud" }
 }
 
 export function loadSettings(): AgnesSettings {
@@ -23,7 +24,7 @@ export function loadSettings(): AgnesSettings {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return defaultSettings()
     const parsed = JSON.parse(raw) as Partial<AgnesSettings>
-    return { ...defaultSettings(), ...parsed }
+    return { ...defaultSettings(), ...parsed, runtime: parsed.runtime === "pi" ? "pi" : "cloud" }
   } catch {
     return defaultSettings()
   }
