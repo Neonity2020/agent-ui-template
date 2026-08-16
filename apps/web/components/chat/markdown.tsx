@@ -22,13 +22,13 @@ export function Markdown({ children }: { children: string }) {
             </a>
           ),
           pre: ({ children }) => (
-            <pre className="overflow-x-auto rounded-lg border bg-[#0d1117] p-3 text-xs leading-5 text-zinc-300">
+            <pre className="overflow-x-auto rounded-lg border border-zinc-700 bg-[#0d1117] p-3 text-xs leading-5 text-zinc-100 [&_code]:rounded-none [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-inherit [&_code]:font-mono">
               {children}
             </pre>
           ),
           code: ({ className, children, ...props }) => {
-            // Block code arrives inside <pre> with a language-* class; the pre
-            // owns its surface. Inline code gets a subtle chip instead.
+            // A fenced block without a language has no language-* class. The
+            // <pre> descendant rules above reset its inline-code chip styles.
             if (className?.includes("language-")) {
               return (
                 <code className={className} {...props}>

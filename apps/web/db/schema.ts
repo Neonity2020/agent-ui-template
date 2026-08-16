@@ -1,4 +1,5 @@
-import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core"
+import type { UIMessage } from "ai"
+import { boolean, index, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core"
 
 // Better Auth core tables (https://www.better-auth.com/docs/database/drizzle)
 
@@ -51,3 +52,35 @@ export const verification = pgTable("verification", {
   createdAt: timestamp("created_at"),
   updatedAt: timestamp("updated_at"),
 })
+
+// Chat history is deliberately separate from Better Auth's `session` table:
+// an auth session identifies a logged-in browser, while a conversation owns
+// the messages a user exchanges with a particular agent.
+export const conversation = pgTable(
+  "conversation",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    agentId: text("agent_id").notNull(),
+    title: text("title").notNull().default("New chat"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [index("conversation_user_agent_updated_at_idx").on(table.userId, table.agentId, table.updatedAt)],
+)
+
+export const chatMessage = pgTable(
+  "chat_message",
+  {
+    id: text("id").primaryKey(),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversation.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    parts: jsonb("parts").$type<UIMessage["parts"]>().notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [index("chat_message_conversation_created_at_idx").on(table.conversationId, table.createdAt)],
+)
