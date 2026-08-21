@@ -51,6 +51,7 @@ function AgentChat({
 }) {
   const listRef = useRef<HTMLDivElement>(null)
   const loadedConversationId = useRef<string | null>(null)
+  const sendingRef = useRef(false)
   const localRunnerUrl = process.env.NEXT_PUBLIC_PI_RUNNER_URL
   const usingLocalRunner = settings.runtime === "pi" && Boolean(localRunnerUrl)
   const chat = useChat({
@@ -114,19 +115,25 @@ function AgentChat({
   }, [agent.id, conversationId, historyEnabled, setMessages])
 
   async function sendMessage(prompt: string, files: File[]) {
-    if (files.length === 0) {
-      await chat.sendMessage({ text: prompt })
-      return
+    if (sendingRef.current) return
+    sendingRef.current = true
+    try {
+      if (files.length === 0) {
+        await chat.sendMessage({ text: prompt })
+        return
+      }
+      const fileParts: FileUIPart[] = await Promise.all(
+        files.map(async (file) => ({
+          type: "file" as const,
+          mediaType: file.type,
+          filename: file.name,
+          url: await fileToDataUrl(file),
+        })),
+      )
+      await chat.sendMessage({ text: prompt, files: fileParts })
+    } finally {
+      sendingRef.current = false
     }
-    const fileParts: FileUIPart[] = await Promise.all(
-      files.map(async (file) => ({
-        type: "file" as const,
-        mediaType: file.type,
-        filename: file.name,
-        url: await fileToDataUrl(file),
-      })),
-    )
-    await chat.sendMessage({ text: prompt, files: fileParts })
   }
 
   function fileToDataUrl(file: File): Promise<string> {
