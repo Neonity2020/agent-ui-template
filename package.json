@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "pnpm --filter @agent-ui/web dev",
+    "dev:local": "pnpm --parallel --stream --filter @agent-ui/web --filter @agent-ui/local-runner run dev:local",
     "build": "pnpm --filter @agent-ui/web build",
     "start": "pnpm --filter @agent-ui/web start",
     "lint": "eslint .",

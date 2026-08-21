@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "dev:local": "NEXT_PUBLIC_PI_RUNNER_URL=http://127.0.0.1:4242/v1/prompt next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ignore-pattern .next",

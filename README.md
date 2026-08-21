@@ -59,7 +59,7 @@ Email/password auth is powered by [Better Auth](https://www.better-auth.com) wit
 
 4. Restart the dev server. Sign up at `http://localhost:3000/sign-up`.
 
-The auth handlers live at `/api/auth/*`; the header shows a sign-in button or a user menu once signed in. Chat works without an account — auth just adds persistent sessions.
+The auth handlers live at `/api/auth/*`; the header shows a sign-in button or a user menu once signed in. Chat works without an account, while signed-in users get persistent per-agent chat history.
 
 ## Commands
 
