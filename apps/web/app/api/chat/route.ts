@@ -145,7 +145,7 @@ export async function POST(request: Request) {
       onError: (error) => console.error("[chat] Agnes stream error", error),
       onFinish: ({ text }) => persistAssistantText(text),
     })
-    return result.toUIMessageStreamResponse({ originalMessages: messages })
+    return result.toUIMessageStreamResponse()
   }
 
   if (process.env.OPENAI_API_KEY) {
@@ -162,13 +162,12 @@ export async function POST(request: Request) {
       stopWhen: stepCountIs(5),
       onFinish: ({ text }) => persistAssistantText(text),
     })
-    return result.toUIMessageStreamResponse({ originalMessages: messages })
+    return result.toUIMessageStreamResponse()
   }
 
   const reply = mockReply(agent.id, lastUserText(messages))
   await persistAssistantText(reply)
   const stream = createUIMessageStream({
-    originalMessages: messages,
     execute: ({ writer }) => writer.merge(createMockStream(reply)),
   })
   return createUIMessageStreamResponse({ stream })
